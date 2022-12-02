@@ -31,42 +31,76 @@ public final class MusicGroupImpl implements MusicGroup {
 
     @Override
     public Stream<String> orderedSongNames() {
-        return null;
+        return this.songs.stream()
+                .map(song -> song.getSongName())
+                .sorted();
     }
 
     @Override
     public Stream<String> albumNames() {
-        return null;
+        return albums.keySet().stream();
     }
 
     @Override
     public Stream<String> albumInYear(final int year) {
-        return null;
+        return albums.keySet()
+                .stream()
+                .filter(album -> albums.get(album) == year);
     }
 
     @Override
     public int countSongs(final String albumName) {
-        return -1;
+        return (int) this.songsInAlbum(albumName).count();
     }
 
     @Override
     public int countSongsInNoAlbum() {
-        return -1;
+        return (int) songs.stream()
+                .filter(song -> !song.getAlbumName().isPresent())
+                .count();
     }
 
     @Override
     public OptionalDouble averageDurationOfSongs(final String albumName) {
-        return null;
+        return OptionalDouble.of(
+                this.songsInAlbum(albumName)
+                        .map(song -> song.getDuration())
+                        .reduce((d1, d2) -> d1 + d2)
+                        .get() / countSongs(albumName));
     }
 
     @Override
     public Optional<String> longestSong() {
-        return null;
+        return Optional.of(songs.stream()
+                .max((song1, song2) -> Double.compare(song1.getDuration(), song2.getDuration()))
+                .get()
+                .getSongName());
     }
 
     @Override
     public Optional<String> longestAlbum() {
-        return null;
+        final Map<String, Double> allAlbums = new HashMap<>();
+        songs.stream()
+                .filter(song -> song.getAlbumName().isPresent())
+                .forEach(song -> {
+                    final String songName = song.getAlbumName().get();
+                    if (allAlbums.containsKey(songName)) {
+                        allAlbums.put(songName, allAlbums.get(songName) + song.getDuration());
+                    } else {
+                        allAlbums.put(songName, song.getDuration());
+                    }
+                });
+
+        return Optional.of(allAlbums.entrySet()
+                .stream()
+                .max((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
+                .get()
+                .getKey());
+    }
+
+    private Stream<Song> songsInAlbum(final String albumName) {
+        return songs.stream()
+                .filter(song -> song.getAlbumName().isPresent() && song.getAlbumName().get().equals(albumName));
     }
 
     private static final class Song {
