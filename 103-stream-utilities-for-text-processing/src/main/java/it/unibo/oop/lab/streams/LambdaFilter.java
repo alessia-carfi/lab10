@@ -6,13 +6,18 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.LayoutManager;
 import java.awt.Toolkit;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
 /**
@@ -27,7 +32,8 @@ import javax.swing.JTextArea;
  *
  * 4) List all the words in alphabetical order
  * 
- * 5) Write the count for each word, e.g. "word word pippo" should output "pippo -> 1 word -> 2"
+ * 5) Write the count for each word, e.g. "word word pippo" should output "pippo
+ * -> 1 word -> 2"
  *
  */
 public final class LambdaFilter extends JFrame {
@@ -38,7 +44,28 @@ public final class LambdaFilter extends JFrame {
         /**
          * Commands.
          */
-        IDENTITY("No modifications", Function.identity());
+        IDENTITY("No modifications", Function.identity()),
+        LOWERCASE("Convert to lower case", String::toLowerCase),
+        COUNTCHARS("Count chars", (String s) -> Long.toString(s.chars().count())),
+        COUNTLINES("Count lines", (String s) -> Integer.toString(s.split("\n").length)),
+        SORT("Sort word", (String s) -> Stream.of(s.split("\\W+"))
+                .sorted()
+                .collect(Collectors.joining("\n"))),
+        COUNTEACHWORD("Count each word", (String s) -> {
+            final Map<String, Integer> occurences = new HashMap<>();
+            Stream.of(s.split("\\W+"))
+                    .forEach(word -> {
+                        if (occurences.containsKey(word)) {
+                            occurences.put(word, occurences.get(word) + 1);
+                        } else {
+                            occurences.put(word, 1);
+                        }
+                    });
+            return occurences.entrySet()
+                    .stream()
+                    .map(e -> e.getKey() + " -> " + e.getValue())
+                    .collect(Collectors.joining("\n"));
+        });
 
         private final String commandName;
         private final Function<String, String> fun;
@@ -69,14 +96,17 @@ public final class LambdaFilter extends JFrame {
         final JPanel centralPanel = new JPanel(new GridLayout(1, 2));
         final JTextArea left = new JTextArea();
         left.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        final JScrollPane scrollLeft = new JScrollPane(left, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         final JTextArea right = new JTextArea();
+        final JScrollPane scrollRight = new JScrollPane(right, JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         right.setBorder(BorderFactory.createLineBorder(Color.BLACK));
         right.setEditable(false);
-        centralPanel.add(left);
-        centralPanel.add(right);
+        centralPanel.add(scrollLeft);
+        centralPanel.add(scrollRight);
         panel1.add(centralPanel, BorderLayout.CENTER);
         final JButton apply = new JButton("Apply");
-        apply.addActionListener(ev -> right.setText(((Command) combo.getSelectedItem()).translate(left.getText())));
         panel1.add(apply, BorderLayout.SOUTH);
         setContentPane(panel1);
         final Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
@@ -84,6 +114,8 @@ public final class LambdaFilter extends JFrame {
         final int sh = (int) screen.getHeight();
         setSize(sw / 4, sh / 4);
         setLocationByPlatform(true);
+
+        apply.addActionListener(ev -> right.setText(((Command) combo.getSelectedItem()).translate(left.getText())));
     }
 
     /**
